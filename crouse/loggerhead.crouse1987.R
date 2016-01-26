@@ -1,13 +1,67 @@
+## This script follows the matrix population model methods in Crouse 1987 to produce equivalent analyses.
+
+## Reference
+## Title: A Stage-Based Population Model for Loggerhead Sea Turtles and Implications for Conservation
+## Author(s): Deborah T. Crouse, Larry B. Crowder and Hal Caswell
+## Source: Ecology, Vol. 68, No. 5 (Oct., 1987), pp. 1412-1423
+## Published by: Ecological Society of America
+## Stable URL: http://www.jstor.org/stable/1939225
+
 rm(list=ls())
+
+createProjectionMatrix <- function (surv, fec, d = NULL) {
+    ## Create a stage-based population projection matrix
+
+    ## Args:
+    ##   surv: Stage-based survivorship estimates.
+    ##   fec: Stage-based fecundity estimates.
+    ##   d: Length of stages. If NULL the matrix reduces to an age-based projection matrix (Leslie matrix).
+
+    ## Returns: Projection matrix A in which diagonal elements indicate the
+    ## probability of remaining in a given stage; sub-diagonal elements indicate
+    ## the probability of surviving and growing into the next stage; and the
+    ## first row indicates the contribution to newborns from each stage.
+
+    dimA <- length(surv)
+    ## expect fec to have same length
+    if (length(fec) != dimA)
+        stop("expecting equal length survival and fecundity estimates")
+
+    if (is.null(d)) {
+        d <- rep(1, dimA)
+    } else if (length(d) != dimA) {
+        stop("expecting equal length survival and stage length vectors")
+    }
+
+    # Calculate P (survival transition) and G (growth transition) values
+    P <- ((1 - surv^(d-1))/(1 - surv^d))*surv  # See Crouse 1987, Eq. (1)
+    G <- (surv^d*(1 - surv))/(1 - surv^d)  # See Crouse 1987, Eq. (2)
+
+    # Create the projection matrix and set the diagonal to P.
+    A <- diag(P)
+
+    # Set the sub-diagonal to G (discarding the last value which is spurious because
+    # the last stage is absorbing).
+    diag(A[-1,-dimA]) <- G[1:(dimA-1)]
+
+    # Set the first row to the fecundity values, eliding the first entry which we assume
+    # corresponds to a non-reproductive stage.
+    A[1,2:dimA] <- fec[2:dimA]
+
+    return(A)
+}
 
 library(dplyr)
 
-turtleData <- read.csv("~/Projects/popmod/crouse/loggerhead.crouse1987.csv")
+turtleData <- read.csv("~/Projects/popmod/crouse/loggerhead.crouse1987.csv") %>%
+    mutate(stage.length = max.age - min.age)
 
-str(turtleData)
+A <- with(turtleData, createProjectionMatrix(surv, fecund, stage.length))
+A
 
-turtleData <- mutate(turtleData, stage.length = max.age - min.age)
+## Lazy way: use eigen() to get our eigenvalues and vectors
+lambda <- eigen(A, symmetric = FALSE)$values[1]
+(r <- log(lambda))
 
-# TODO write a method to produce these
-P <- transmute(turtleData, p.surv = ((1 - surv^(stage.length-1))/(1 - surv^stage.length))*surv)
-G <- transmute(turtleData, grow = (surv^stage.length*(1 - surv))/(1 - surv^stage.length))
+# Crouse 1987 calculates the eigenvalues and eigenvectors using the power method (Searle 1966, Keyfitz 1977)
+# See p205 of Trefethen and Bau for this algorithm (which the authors note is not a very effective method for finding eigenvalues/eigenvectors)
