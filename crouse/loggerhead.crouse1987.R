@@ -74,8 +74,7 @@ lambda <- eig$values[1]
 ## The stable stage distribution is given by the right eigenvector (coerced here
 ## to its real part).
 w1 <- Re(eig$vectors[,1])
-turtleData <- mutate(turtleData, stage.dist = w/sum(w))
-
+turtleData <- mutate(turtleData, stage.dist = w1/sum(w1))
 
 ggplot(turtleData, aes(x = stage, y = stage.dist))+
     geom_bar(stat="identity", fill="cornflowerblue", width = 0.8)+
@@ -87,12 +86,8 @@ ggplot(turtleData, aes(x = stage, y = stage.dist))+
     theme(axis.text.x = element_text(angle = 45, hjust=1, size=12),
           axis.line.x = element_line(lineend = 0.5))
 
-## The reproductive value is given by the left eigenvector. To find the left
-## eigenvectors we take the complex conjugate of the inverse of the array of
-## right eigenvectors; the rows are the left eigenvectors corresponding to the
-## columns of W (Caswell 2001).
-
-## YAH This doesn't produce the values in Crouse.
-V <- Conj(eig$vectors^(-1))
-v1 <- t(Re(V[1,]))
-v1
+## The reproductive value is given by the left eigenvector, which we get by
+## calculating the eigenvectors of the transpose of the projection matrix.
+v1 <- eigen(t(A), symmetric = FALSE)$vectors[,1]
+repro_value <- v1/v1[1]
+repro_value
