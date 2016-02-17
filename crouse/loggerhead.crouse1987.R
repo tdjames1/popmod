@@ -156,3 +156,24 @@ p2 <- ggplot(sens.grow, aes(x = S+1, y = grow.inc))+
           title = element_text(size=9.5, face='bold'))
 
 grid.arrange(p1, p2, ncol=1)
+
+## Elasticities for matrix entries
+mean_repro <- Re(repro_value %*% turtleData$stage.dist)
+E <- A*Re(outer(repro_value, turtleData$stage.dist))/as.vector(Re(lambda)*mean_repro)
+
+Edata <- data.frame(expand.grid(stage = 1:7, param.type = c("P", "G", "F")),
+                    e = c(diag(E), c(diag(E[-1,-dim(A)[1]]), 0), E[1,]))
+
+# Plot elasticities for the matrix entries
+ggplot(Edata, aes(x = stage, y = e, shape = param.type)) +
+    geom_point() +
+    geom_line(size=0.1) +
+    xlab("Stage") +
+    ylab("Elasticity") +
+    scale_x_discrete(limits=1:7)+
+    guides(shape=guide_legend(title=NULL)) +
+    scale_shape_manual(values=c(2,0,1),
+                       name="",
+                       breaks=c("P", "G", "F"),
+                       labels=c("Survival", "Growth", "Fecundity"))+
+    theme_classic()
