@@ -46,3 +46,24 @@ createProjectionMatrix <- function (surv, fec, d = NULL) {
 
     return(A)
 }
+
+getMPM <- function (surv, fecund, stage.length = NULL) {
+  ## Create a stage-based matrix population model
+
+  ## Args:
+  ##   surv: Stage-based survivorship estimates.
+  ##   fecund: Stage-based fecundity estimates.
+  ##   stage.length: Length of stages.
+
+  ## Returns: List containing the following MPM components:
+  ##   A: projection matrix
+  ##   eig: object of class eigen containing eigenvectors and eigenvalues for
+  ##   the matrix
+  ##   lambda: largest eigenvalue (coerced to real number)
+
+  A <- createProjectionMatrix(surv, fecund, stage.length)
+  eig <- eigen(A, symmetric = FALSE)
+  lambda <- Re(eig$values[1])
+
+  return(list(A = A, eig = eig, lambda = lambda))
+}

@@ -60,6 +60,8 @@ library(dplyr)
 library(ggplot2)
 library(gridExtra)
 
+source(file = "~/Projects/popmod/crouse/loggerhead_fun.R")
+
 turtleData <- read.csv("~/Projects/popmod/crouse/loggerhead.crouse1987.csv") %>%
     mutate(stage.length = max.age - min.age)
 
@@ -177,3 +179,52 @@ ggplot(Edata, aes(x = stage, y = e, shape = param.type)) +
                        breaks=c("P", "G", "F"),
                        labels=c("Survival", "Growth", "Fecundity"))+
     theme_classic()
+
+## Management scenarios
+
+# 1. increase survival in stages 2, 3, and 4 to 0.80
+# 2. increase survival in stages 3 and 4 to 0.80, increase adult survival to 0.85
+# 3. decrease survival in first-year to 0.33735, increase survival for stages 3
+#    and 4 to 0.80 and for adults to 0.85
+
+td <- turtleData %>% mutate(surv.s1 = replace(surv, stage %in% 2:4, 0.8),
+                            surv.s2 = ifelse(stage %in% 3:4, 0.8,
+                                             ifelse(stage %in% 5:7, 0.85, surv)),
+                            surv.s3 = ifelse(stage==1, 0.5*surv,
+                                             ifelse(stage %in% 3:4, 0.8,
+                                                    ifelse(stage %in% 5:7, 0.85, surv))))
+
+mod.s1 <- with(td, getMPM(surv.s1, fecund, stage.length))
+round(l1 <- mod.s1$lambda, digits=2)
+round(r1 <- log(l1), digits=2)
+
+mod.s2 <- with(td, getMPM(surv.s2, fecund, stage.length))
+round(l2 <- mod.s2$lambda, digits=2)
+round(r2 <- log(l2), digits=2)
+
+mod.s3 <- with(td, getMPM(surv.s3, fecund, stage.length))
+round(l3 <- mod.s3$lambda, digits=2)
+round(r3 <- log(l3), digits=2)
+
+## What increase in survival at stages 2,3,4, and 7 is required to achieve
+## stability (lambda = 1, r = 0)?
+stages <- c(2,3,4,7)
+tol <- 1e-2
+surv.final <- sapply(stages, function(x) {
+  cand <- lower <- turtleData[x,"surv"]
+  upper <- 1
+  while(lambda < 1 || upper - lower > tol) {
+    cand <- (upper + lower)/2
+    td <- turtleData %>% mutate(surv=replace(surv, stage==x, cand))
+    mod <- with(td, getMPM(surv, fecund, stage.length))
+    lambda <- mod$lambda
+    if (lambda < 1) {
+      lower <- cand
+    } else {
+      upper <- cand
+    }
+  }
+  return (cand)
+})
+round(surv.final, digits=3)
+with(turtleData, round(surv.final/surv[stages], digits=3))
