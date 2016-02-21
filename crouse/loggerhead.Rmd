@@ -136,4 +136,54 @@ grid.arrange(p1, p2, nrow=1)
 
 The dotted line in the above plot indicates the baseline rate of increase.
 
+## Management scenarios
+
+Determine the rate of population growth expected under the following management scenarios:
+
+1. Immature survivorship (stages 2, 3, and 4) increased to 0.80.
+2. Survival of large juvenile and subadults increased to 0.80, adult survival increased to 0.85.
+3. First-year survival decreased to 0.33735, survival of large juvenile and subadults increased to 0.80, adult survival increased to 0.85.
+
+```{r scenario}
+td <- turtleData %>% mutate(surv.s1 = replace(surv, stage %in% 2:4, 0.8),
+                            surv.s2 = ifelse(stage %in% 3:4, 0.8,
+                                             ifelse(stage %in% 5:7, 0.85, surv)),
+                            surv.s3 = ifelse(stage==1, 0.5*surv,
+                                             ifelse(stage %in% 3:4, 0.8,
+                                                    ifelse(stage %in% 5:7, 0.85, surv))))
+
+mod.s1 <- with(td, getMPM(surv.s1, fecund, stage.length))
+mod.s2 <- with(td, getMPM(surv.s2, fecund, stage.length))
+mod.s3 <- with(td, getMPM(surv.s3, fecund, stage.length))
+
+lambdas <- c(mod.s1$lambda, mod.s2$lambda, mod.s3$lambda)
+round(cbind(lambda=lambdas, r=log(lambdas)), digits=2)
+```
+
+What increase in survival at stages 2,3,4, and 7, taken individually, is required to achieve
+stability ($\lambda = 1$, $r = 0$)?
+
+```{r stability}
+stages <- c(2,3,4,7)
+tol <- 1e-2
+surv.final <- sapply(stages, function(x) {
+  cand <- lower <- turtleData[x,"surv"]
+  upper <- 1
+  lambda <- 0
+  while(lambda < 1 || upper - lower > tol) {
+    cand <- (upper + lower)/2
+    td <- turtleData %>% mutate(surv=replace(surv, stage==x, cand))
+    mod <- with(td, getMPM(surv, fecund, stage.length))
+    lambda <- mod$lambda
+    if (lambda < 1) {
+      lower <- cand
+    } else {
+      upper <- cand
+    }
+  }
+  return (cand)
+})
+round(rbind(surv.final, increase=surv.final/turtleData$surv[stages]), digits=3)
+```
+
 ## References
