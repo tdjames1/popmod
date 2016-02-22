@@ -30,8 +30,8 @@ method. Here I'll use just use eigen() to get the eigenvalues and vectors.
 
 ```{r eigen}
 eig <- eigen(A, symmetric = FALSE)
-lambda <- eig$values[1]
-r <- Re(log(lambda))
+lambda <- Re(eig$values[1])
+r <- log(lambda)
 ```
 This gives $\lambda_m = `r round(Re(lambda), digits=4)`$ and $r = `r round(Re(r), digits=4)`$
 which are pretty close to the values $\lambda_m = 0.9450$ and
@@ -70,7 +70,12 @@ turtleData <- mutate(turtleData, repro.val = Re(v1/v1[1]))
 print(select(turtleData, class, stage.dist, repro.val), digits=3)
 ```
 
-The mean reproductive value can be calculated from the reproductive value and stable stage distribution as `r with(turtleData, round(Re(repro.val %*% stage.dist), digits=4))`.
+The mean reproductive value can be calculated from the reproductive value and stable stage distribution.
+
+```{r mean-repro}
+mean_repro <- with(turtleData, as.vector(Re(repro.val %*% stage.dist)))
+print(mean_repro, digits=4)
+```
 
 ## Sensitivity analyses
 
@@ -136,6 +141,66 @@ grid.arrange(p1, p2, nrow=1)
 
 The dotted line in the above plot indicates the baseline rate of increase.
 
+### Sensitivity to age at first reproduction
+
+```{r sens-age}
+ages <- seq(-6,6,by=2)
+ages[1] <- -5.99
+sens.age <- sapply(ages, function(x) {
+    td <- turtleData %>% mutate(stage.length = ifelse(stage==2, stage.length+x, stage.length))
+
+    A <- with(td, createProjectionMatrix(surv, fecund, stage.length))
+    eig <- eigen(A, symmetric = FALSE)
+    r <- Re(log(eig$values[1]))
+
+    return(r)
+})
+```
+
+```{r sens-age-plot, echo=FALSE}
+sens.age <- data.frame(age=22+ages,r=sens.age)
+sens.orig <- filter(sens.age,age==22)
+ggplot(sens.age, aes(x=age,y=r)) +
+    geom_line() +
+    geom_abline(slope=0,intercept=0) +
+    geom_point(data=sens.orig, aes(x=age, y=r), size=2) +
+    xlab("Age at first reproduction") +
+    ylab("Intrinic rate of increase") +
+    geom_text(x = 23, y = sens.orig$r, label = "base run") +
+    theme_classic()
+```
+
+This plot is slightly more spread out than @crouse1987, Figure 2, so I don't think I've recreated their calculations exactly &ndash; the methods are a bit unclear.
+
+## Elasticity analysis
+Analytical derivation of elacticities i.e. proportional sensitivities for matrix entries.
+
+```{r elas}
+E <- with(turtleData, (A/lambda)*(Re(outer(repro.val, stage.dist))/mean_repro))
+```
+```{r elas-plot, echo=FALSE}
+Edata <- data.frame(expand.grid(stage = 1:7, param.type = c("P", "G", "F")),
+                    e = c(diag(E), c(diag(E[-1,-dim(A)[1]]), 0), E[1,]))
+
+# Plot elasticities for the matrix entries
+ggplot(Edata, aes(x = stage, y = e, shape = param.type)) +
+    geom_point(size=2.3) +
+    geom_line(size=0.1) +
+    xlab("Stage") +
+    ylab("Elasticity") +
+    scale_x_discrete(limits=1:7)+
+    guides(shape=guide_legend(title=NULL)) +
+    scale_shape_manual(values=c(2,0,1),
+                       name="",
+                       breaks=c("P", "G", "F"),
+                       labels=c("Survival", "Growth", "Fecundity"))+
+    theme_classic()
+```
+
+### Elasticities of stage-specific survival and stage duration
+**TODO: Calculate elasticities of stage-specific survival and stage duration.**
+
+
 ## Management scenarios
 
 Determine the rate of population growth expected under the following management scenarios:
@@ -185,5 +250,7 @@ surv.final <- sapply(stages, function(x) {
 })
 round(rbind(surv.final, increase=surv.final/turtleData$surv[stages]), digits=3)
 ```
+
+These results are slightly different to those of @crouse1987, probably due to using a different method of finding the stable point.
 
 ## References

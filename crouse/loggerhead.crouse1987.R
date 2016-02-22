@@ -9,53 +9,6 @@
 
 rm(list=ls())
 
-createProjectionMatrix <- function (surv, fec, d = NULL) {
-    ## Create a stage-based population projection matrix
-
-    ## Args:
-    ##   surv: Stage-based survivorship estimates.
-    ##   fec: Stage-based fecundity estimates.
-    ##   d: Length of stages. If NULL the matrix reduces to an age-based projection matrix (Leslie matrix).
-
-    ## Returns: Projection matrix A in which diagonal elements indicate the
-    ## probability of remaining in a given stage; sub-diagonal elements indicate
-    ## the probability of surviving and growing into the next stage; and the
-    ## first row indicates the contribution to newborns from each stage.
-
-    dimA <- length(surv)
-    ## expect fec to have same length
-    if (length(fec) != dimA)
-        stop("expecting equal length survival and fecundity estimates")
-
-    if (is.null(d)) {
-        d <- rep(1, dimA)
-    } else if (length(d) != dimA) {
-        stop("expecting equal length survival and stage length vectors")
-    }
-
-    if(any(surv==1)) {
-        warning("replacing survivorship values of 1 with 0.999 to avoid NaNs")
-        surv[surv==1] = 0.999
-    }
-
-    # Calculate P (survival transition) and G (growth transition) values
-    P <- ((1 - surv^(d-1))/(1 - surv^d))*surv  # See Crouse 1987, Eq. (1)
-    G <- (surv^d*(1 - surv))/(1 - surv^d)  # See Crouse 1987, Eq. (2)
-
-    # Create the projection matrix and set the diagonal to P.
-    A <- diag(P)
-
-    # Set the sub-diagonal to G (discarding the last value which is spurious because
-    # the last stage is absorbing).
-    diag(A[-1,-dimA]) <- G[1:(dimA-1)]
-
-    # Set the first row to the fecundity values, eliding the first entry which we assume
-    # corresponds to a non-reproductive stage.
-    A[1,2:dimA] <- fec[2:dimA]
-
-    return(A)
-}
-
 library(dplyr)
 library(ggplot2)
 library(gridExtra)
@@ -97,14 +50,13 @@ ggplot(turtleData, aes(x = stage, y = stage.dist))+
 ## The reproductive value is given by the left eigenvector, which we get by
 ## calculating the eigenvectors of the transpose of the projection matrix.
 v1 <- eigen(t(A), symmetric = FALSE)$vectors[,1]
-repro_value <- v1/v1[1]
+repro_value <- Re(v1/v1[1])
 repro_value
 
 ## Mean reproductive value
 repro_value %*% turtleData$stage.dist
 
 ## Sensitivity analyses
-
 perm <- rbind(c(1,0), cbind(F=0, S=1:7))
 sens.grow <- t(apply(perm, MARGIN = 1, function(x) {
     td <- turtleData %>% mutate(surv.dec = ifelse(stage==x["S"], surv*0.5, surv),
@@ -159,9 +111,29 @@ p2 <- ggplot(sens.grow, aes(x = S+1, y = grow.inc))+
 
 grid.arrange(p1, p2, ncol=1)
 
+## Age at first repro sensitivity
+ages <- seq(-6,6,by=2)
+ages[1] <- -5.99
+sens.age <- sapply(ages, function(x) {
+    td <- turtleData %>% mutate(stage.length = ifelse(stage==2, stage.length+x, stage.length))
+
+    A <- with(td, createProjectionMatrix(surv, fecund, stage.length))
+    eig <- eigen(A, symmetric = FALSE)
+    r <- Re(log(eig$values[1]))
+
+    return(r)
+})
+sens.age <- data.frame(age=22+ages,r=sens.age)
+sens.orig <- filter(sens.age,age==22)
+ggplot(sens.age, aes(x=age, y=r)) +
+    geom_line() +
+    geom_abline(slope=0,intercept=0) +
+    geom_point(data=sens.orig, aes(x=age, y=r), size=3) +
+    theme_classic()
+
 ## Elasticities for matrix entries
-mean_repro <- Re(repro_value %*% turtleData$stage.dist)
-E <- A*Re(outer(repro_value, turtleData$stage.dist))/as.vector(Re(lambda)*mean_repro)
+mean_repro <- as.vector(Re(repro_value %*% turtleData$stage.dist))
+E <- A*Re(outer(repro_value, turtleData$stage.dist))/(lambda*mean_repro)
 
 Edata <- data.frame(expand.grid(stage = 1:7, param.type = c("P", "G", "F")),
                     e = c(diag(E), c(diag(E[-1,-dim(A)[1]]), 0), E[1,]))
@@ -179,6 +151,25 @@ ggplot(Edata, aes(x = stage, y = e, shape = param.type)) +
                        breaks=c("P", "G", "F"),
                        labels=c("Survival", "Growth", "Fecundity"))+
     theme_classic()
+
+## Elasticities of stage-specific survival and stage duration FIXME
+## Following Caswell 2001
+P <- diag(A)
+G <- c(diag(A[-1,-dim(A)[1]]), 0)
+
+# Vaguely following p233, doesn't seem to work
+#(P/lambda) * select(filter(Edata, param.type == "P"), e) + (G/lambda) * select(filter(Edata, param.type == "G"), e)
+
+#(turtleData$surv/(turtleData$stage.length*lambda))*(select(filter(Edata, param.type == "G"), e) - select(filter(Edata, param.type == "P"), e))
+
+# Using Caswell p219-220 (9.43) and (9.46)
+# This is the right pattern but not the same values as Fig 4 of Crouse et al.
+deltaV <- c(diff(repro_value),0)
+E.surv <- (turtleData$surv/lambda)*(Re((repro_value+deltaV/turtleData$stage.length)*turtleData$stage.dist)/mean_repro)
+
+# This is way off mark
+E.dur <- (1/(turtleData$stage.length*lambda))*turtleData$surv*turtleData$stage.dist*deltaV/mean_repro
+
 
 ## Management scenarios
 
