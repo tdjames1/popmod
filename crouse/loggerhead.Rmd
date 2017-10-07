@@ -14,9 +14,9 @@ library(gridExtra)
 source("loggerhead_fun.R")
 ```
 
-This workbook follows the matrix population model methods and analyses outlined in @crouse1987.
+This workbook follows the matrix population model methods and analyses outlined in @crouse1987 to produce equivalent analyses.
 
-First, import the turtle data [@crouse1987, Table 3] and add a column for stage length, then set up the projection matrix.
+First, import the turtle data [@crouse1987, Table 3] and add a column for stage length, then set up the projection matrix using this data and equations 1 and 2 in @crouse1987.
 
 ```{r dataimport}
 turtleData <- read.csv("~/Projects/popmod/crouse/loggerhead.crouse1987.csv") %>%
@@ -79,7 +79,7 @@ print(mean_repro, digits=4)
 
 ## Sensitivity analyses
 
-First, determine the impact of reduction or increase in fecundity or stage-specific survival parameters, each taken separately, on the intrinsic rate of increase $r$.
+First, determine the impact of reducing or increasing fecundity or stage-specific survival parameters, each taken separately, on the intrinsic rate of increase $r$.
 
 ```{r sensitivity, warning=FALSE}
 perm <- rbind(c(1,0), cbind(F=0, S=1:7))
@@ -101,6 +101,8 @@ sens <- t(apply(perm, MARGIN = 1, function(x) {
 }))
 sens <- data.frame(perm,sens)
 ```
+
+The first plot represents 50% reduction in fecundity or survivorship while the second plot represents a doubling in fecundity or elimination of mortality. The dotted lines in these plots indicate the baseline rate of increase.
 
 ```{r sens-plot, echo=FALSE}
 lim=c(min(sens$grow.dec, sens$grow.inc),
@@ -139,15 +141,13 @@ p2 <- ggplot(sens, aes(x = S+1, y = grow.inc))+
 grid.arrange(p1, p2, nrow=1)
 ```
 
-The dotted line in the above plot indicates the baseline rate of increase.
-
 ### Sensitivity to age at first reproduction
 
 ```{r sens-age}
-ages <- seq(-6,6,by=2)
-ages[1] <- -5.99
+ages <- seq(-2,2,by=1)
+stages <- 2:4
 sens.age <- sapply(ages, function(x) {
-    td <- turtleData %>% mutate(stage.length = ifelse(stage==2, stage.length+x, stage.length))
+    td <- turtleData %>% mutate(stage.length = ifelse(stage %in% stages, stage.length+x, stage.length))
 
     A <- with(td, createProjectionMatrix(surv, fecund, stage.length))
     eig <- eigen(A, symmetric = FALSE)
@@ -158,19 +158,17 @@ sens.age <- sapply(ages, function(x) {
 ```
 
 ```{r sens-age-plot, echo=FALSE}
-sens.age <- data.frame(age=22+ages,r=sens.age)
+sens.age <- data.frame(age=22+length(stages)*ages,r=sens.age)
 sens.orig <- filter(sens.age,age==22)
 ggplot(sens.age, aes(x=age,y=r)) +
     geom_line() +
     geom_abline(slope=0,intercept=0) +
-    geom_point(data=sens.orig, aes(x=age, y=r), size=2) +
+    geom_point(size=1) +
     xlab("Age at first reproduction") +
     ylab("Intrinic rate of increase") +
     geom_text(x = 23, y = sens.orig$r, label = "base run") +
     theme_classic()
 ```
-
-This plot is slightly more spread out than @crouse1987, Figure 2, so I don't think I've recreated their calculations exactly &ndash; the methods are a bit unclear.
 
 ## Elasticity analysis
 Analytical derivation of elacticities i.e. proportional sensitivities for matrix entries.

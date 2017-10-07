@@ -57,12 +57,14 @@ repro_value
 repro_value %*% turtleData$stage.dist
 
 ## Sensitivity analyses
+## a. Reduction in fecundity and mortality by 50%
+## b. Doubling in fecundity and elimination of mortality
 perm <- rbind(c(1,0), cbind(F=0, S=1:7))
 sens.grow <- t(apply(perm, MARGIN = 1, function(x) {
     td <- turtleData %>% mutate(surv.dec = ifelse(stage==x["S"], surv*0.5, surv),
                                 fecund.dec = ifelse(x["F"],0.5,1)*fecund,
                                 surv.inc = ifelse(stage==x["S"], 0.99, surv),
-                                fecund.inc = ifelse(x["F"],1.5,1)*fecund)
+                                fecund.inc = ifelse(x["F"],2,1)*fecund)
 
     A <- with(td, createProjectionMatrix(surv.dec, fecund.dec, stage.length))
     eig <- eigen(A, symmetric = FALSE)
@@ -112,10 +114,10 @@ p2 <- ggplot(sens.grow, aes(x = S+1, y = grow.inc))+
 grid.arrange(p1, p2, ncol=1)
 
 ## Age at first repro sensitivity
-ages <- seq(-6,6,by=2)
-ages[1] <- -5.99
+ages <- seq(-2,2,by=1)
+stages <- 2:4
 sens.age <- sapply(ages, function(x) {
-    td <- turtleData %>% mutate(stage.length = ifelse(stage==2, stage.length+x, stage.length))
+    td <- turtleData %>% mutate(stage.length = ifelse(stage %in% stages, stage.length+x, stage.length))
 
     A <- with(td, createProjectionMatrix(surv, fecund, stage.length))
     eig <- eigen(A, symmetric = FALSE)
@@ -123,12 +125,12 @@ sens.age <- sapply(ages, function(x) {
 
     return(r)
 })
-sens.age <- data.frame(age=22+ages,r=sens.age)
+sens.age <- data.frame(age=22+length(stages)*ages,r=sens.age)
 sens.orig <- filter(sens.age,age==22)
 ggplot(sens.age, aes(x=age, y=r)) +
     geom_line() +
     geom_abline(slope=0,intercept=0) +
-    geom_point(data=sens.orig, aes(x=age, y=r), size=3) +
+    geom_point(size=1) +
     theme_classic()
 
 ## Elasticities for matrix entries
@@ -170,6 +172,23 @@ E.surv <- (turtleData$surv/lambda)*(Re((repro_value+deltaV/turtleData$stage.leng
 # This is way off mark
 E.dur <- (1/(turtleData$stage.length*lambda))*turtleData$surv*turtleData$stage.dist*deltaV/mean_repro
 
+# Plot elasticities for raw parameters
+elas <- data.frame(stage = 1:7, surv = E.surv, dur = E.dur)
+p1 <- ggplot(elas, aes(x = stage, y = surv)) +
+    geom_point(pch = 1) +
+    geom_line(size=0.1) +
+    xlab("Stage") +
+    ylab("Elasticity") +
+    scale_x_discrete(limits=1:7)+
+    theme_classic()
+p2 <- ggplot(elas, aes(x = stage, y = dur)) +
+    geom_point(pch = 1) +
+    geom_line(size=0.1) +
+    xlab("Stage") +
+    ylab("Elasticity") +
+    scale_x_discrete(limits=1:7)+
+    theme_classic()
+grid.arrange(p1, p2, ncol=1)
 
 ## Management scenarios
 
