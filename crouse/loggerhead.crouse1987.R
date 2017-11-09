@@ -12,10 +12,9 @@ rm(list=ls())
 library(dplyr)
 library(ggplot2)
 library(gridExtra)
+source("loggerhead_fun.R")
 
-source(file = "~/Projects/popmod/crouse/loggerhead_fun.R")
-
-turtleData <- read.csv("~/Projects/popmod/crouse/loggerhead.crouse1987.csv") %>%
+turtleData <- read.csv("loggerhead.crouse1987.csv") %>%
     mutate(stage.length = max.age - min.age)
 
 A <- with(turtleData, createProjectionMatrix(surv, fecund, stage.length))

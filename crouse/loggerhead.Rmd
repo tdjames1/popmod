@@ -19,7 +19,7 @@ This workbook follows the matrix population model methods and analyses outlined 
 First, import the turtle data [@crouse1987, Table 3] and add a column for stage length, then set up the projection matrix.
 
 ```{r dataimport}
-turtleData <- read.csv("~/Projects/popmod/crouse/loggerhead.crouse1987.csv") %>%
+turtleData <- read.csv("loggerhead.crouse1987.csv") %>%
     mutate(stage.length = max.age - min.age)
 A <- with(turtleData, createProjectionMatrix(surv, fecund, stage.length))
 print(A, digits=4)
