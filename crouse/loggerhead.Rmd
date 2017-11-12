@@ -1,14 +1,14 @@
 ---
 title: A Stage-Based Population Model for Loggerhead Sea Turtles, after @crouse1987
-author: "Tamora James (APS)"
-date: "16 February 2016"
+author: "Tamora James"
+date: "`r format(Sys.time(), '%d %B %Y')`"
 output: html_document
 bibliography: loggerhead.bib
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, tidy.opts = list(comment = FALSE))
-knitr::read_chunk("loggerhead.crouse1987.R")
+knitr::read_chunk("loggerhead.R")
 ```
 
 ```{r libs, include=FALSE}
