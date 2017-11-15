@@ -91,7 +91,9 @@ Analytical derivation of elacticities i.e. proportional sensitivities for matrix
 
 ### Elasticity to stage-specific survival and stage duration
 
-#### Elasticity of $\lambda$ to stage-specific survival
+The figure below is obtained using calculations from @caswell2001. The pattern is similar to the results in @crouse1987 but there are some small differences in pattern and the actual values don't match.
+
+The elasticity formulae in @caswell2001 indicate how to calculate the elasticity of $\lambda$ to growth transition rather than stage duration so couldn't be used to calculate elasticities to stage duration.
 
 ```{r elas-vr-other, echo=FALSE}
 ```
@@ -100,9 +102,20 @@ Analytical derivation of elacticities i.e. proportional sensitivities for matrix
 p1
 ```
 
-This figure was obtained using calculations from @caswell2001.
+#### Elasticity of $\lambda$ to stage-specific survival and duration -- alternative approach
 
-**TODO: Calculate elasticity of $\lambda$ to stage duration.**
+Using the "brute force" approach of calculating the change in lambda
+resulting from a specified change in a vital rate. The sensitivity to
+the vital rate is the difference in lambda divided by the difference
+in the vital rate.
+
+```{r elas-vr-simple, echo=FALSE}
+```
+
+```{r elas-plot-output-vr-simple, echo=FALSE}
+```
+
+The pattern for elasticity to sensitivity and stage duration in stages 1, 5, 6, and 7 matches @crouse1987 but for stages 2--4 there is some discrepancy with the results reported in @crouse1987. Also, the elasticity values for survival don't match those in @crouse1987.
 
 ## Management scenarios
 
