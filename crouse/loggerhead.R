@@ -182,33 +182,48 @@ ggplot(Edata, aes(x = stage, y = e, shape = param_type)) +
 
 ## 1. Stage-specific survival
 
-## ---- elas-surv-pd ----
-## Calculate partial derivatives of P and G with respect to survival
-d <- turtleData$stage_length
+## ---- elas-vr-pd ----
+## Calculate partial derivatives of P and G with respect to survival (p) and
+## stage length (l)
+l <- turtleData$stage_length
 p <- turtleData$surv
-dP_dp <- (1 - d*p^(d-1) + (d-1)*p^d)/(1-p^d)^2
-dG_dp <- (d*p^(d-1) - (d+1)*p^d + p^(2*d))/(1-p^d)^2
+dP_dp <- (1 - l*p^(l-1) + (l-1)*p^l)/(1-p^l)^2
+dG_dp <- (l*p^(l-1) - (l+1)*p^l + p^(2*l))/(1-p^l)^2
+dP_dl <- (p-1)*log(p)*p^l*(1-p^l)/(1-p^l)^2
+dG_dl <- log(p)*p^l*(1-p)/(1-p^l)^2
 
-## ---- elas-surv-calc ----
 ## Create the matrix of partial derivatives and set the diagonal to dP_dp and
 ## the sub-diagonal to dG_dp
 D <- diag(dP_dp)
 diag(D[-1,-length(p)]) <- dG_dp[1:(length(p)-1)]
+D2 <- diag(dP_dl)
+diag(D2[-1,-length(p)]) <- dG_dl[1:(length(p)-1)]
 
 ## Elasticity calculation
 E_surv <- (p/lambda) * colSums(S * D)
+E_dur <- (p/lambda) * colSums(S * D2)
 
-## ---- elas-surv-plot ----
+## ---- elas-vr-plot ----
 ## Plot elasticity
-elas <- data.frame(stage = 1:7, surv = E_surv)
+elas <- data.frame(stage = 1:7, surv = E_surv, dur = E_dur)
 p1 <- ggplot(elas, aes(x = stage, y = surv)) +
     geom_point(pch = 1) +
     geom_line(size = 0.1) +
     xlab("Stage") +
     ylab("Elasticity") +
     scale_x_discrete(limits = 1:7) +
+    ggtitle("Elasticity to stage-specific survival") +
     theme_classic()
-p1
+p2 <- ggplot(elas, aes(x = stage, y = dur)) +
+  geom_point(pch = 1) +
+  geom_line(size = 0.1) +
+  xlab("Stage") +
+  ylab("Elasticity") +
+  scale_x_discrete(limits = 1:7) +
+  geom_abline(slope = 0, intercept = 0, size = 0.2) +
+  ggtitle("Elasticity to stage length") +
+  theme_classic()
+grid.arrange(p1, p2, ncol=2)
 
 ## ---- elas-vr-other ----
 
@@ -247,7 +262,7 @@ p2 <- ggplot(elas, aes(x = stage, y = dur)) +
     theme_classic()
 
 ## ---- elas-plot-output ----
-grid.arrange(p1, p2, ncol=1)
+grid.arrange(p1, ncol=2)
 
 
 ## ---- Management scenarios ----

@@ -91,18 +91,21 @@ Analytical derivation of elacticities i.e. proportional sensitivities for matrix
 
 ### Elasticity to stage-specific survival and stage duration
 
-#### Elasticity of $\lambda$ to stage-specific survival
+By calculation of the partial derivatives of matrix elements with respect to stage-specific survival and stage duration:
+
+```{r elas-vr-pd, echo=FALSE}
+```
+
+```{r elas-vr-plot, echo=FALSE}
+```
+
+Alternatively, using calculations from @caswell2001:
 
 ```{r elas-vr-other, echo=FALSE}
 ```
 
-```{r, echo=FALSE}
-p1
+```{r elas-plot-output, echo=FALSE}
 ```
-
-This figure was obtained using calculations from @caswell2001.
-
-**TODO: Calculate elasticity of $\lambda$ to stage duration.**
 
 ## Management scenarios
 
