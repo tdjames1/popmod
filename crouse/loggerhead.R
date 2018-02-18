@@ -264,6 +264,51 @@ p2 <- ggplot(elas, aes(x = stage, y = dur)) +
 ## ---- elas-plot-output ----
 grid.arrange(p1, ncol=2)
 
+## ---- elas-vr-simple ----
+## Alternative approach: make small change to vital rate, determine corresponding change in lambda
+
+sens_vr <- lapply(1:7, function(x) {
+    td <- turtleData %>% mutate(surv_adj = ifelse(stage == x, surv*1.01, surv),
+                                surv_diff = surv_adj - surv,
+                                dur_adj = ifelse(stage == x, stage_length*1.01, stage_length),
+                                dur_diff = dur_adj - stage_length)
+
+    A <- with(td, createProjectionMatrix(surv_adj, fecund, stage_length))
+    eig <- eigen(A, symmetric = FALSE)
+    lam_adj <- Re(eig$values[1])
+    sens_surv <- (lam_adj - lambda)/td$surv_diff[x]
+    elas_surv <- sens_surv*td$surv[x]/lambda
+
+    A <- with(td, createProjectionMatrix(surv, fecund, dur_adj))
+    eig <- eigen(A, symmetric = FALSE)
+    lam_adj <- Re(eig$values[1])
+    sens_dur <- (lam_adj - lambda)/td$dur_diff[x]
+    elas_dur <- sens_dur*td$stage_length[x]/lambda
+
+    data.frame(stage = x, vr = c("D", "S"), sens = c(sens_dur, sens_surv), elas = c(elas_dur, elas_surv))
+})
+sens_vr <- do.call(rbind, sens_vr) %>%
+    mutate(vr = factor(vr, levels = c("S", "D"), label = c("Survival", "Stage duration")))
+
+## ---- sens-plot-output-vr-simple ----
+
+## Plot sensitivities
+ggplot(sens_vr, aes(stage, sens)) +
+    geom_point(pch = 1) +
+    facet_wrap(~vr, ncol = 1, scales = "free") +
+    labs(x = "Stage", y = "Sensitivity") +
+    theme_bw() +
+    theme(aspect.ratio = 1.3)
+
+## ---- elas-plot-output-vr-simple ----
+
+## Plot elasticities
+ggplot(sens_vr, aes(stage, elas)) +
+    geom_point(pch = 1) +
+    facet_wrap(~vr, scales = "free") +
+    labs(x = "Stage", y = "Elasticity") +
+    theme_bw() +
+    theme(aspect.ratio = 1.3)
 
 ## ---- Management scenarios ----
 
